@@ -17,7 +17,7 @@ export const SupabaseStatusBadge: React.FC<SupabaseStatusBadgeProps> = ({ onOpen
     if (isConfig && supabase) {
       async function checkConnection() {
         try {
-          const { error } = await supabase!.from('manuscripts').select('id', { count: 'exact', head: true });
+          const { error } = await supabase!.from('submissions').select('id', { count: 'exact', head: true });
           setConnected(!error);
         } catch {
           setConnected(false);
