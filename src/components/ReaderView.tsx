@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Manuscript, ReviewerProfile } from '../types';
+import { fetchSingleManuscriptFromDb } from '../services/supabaseService';
 import { 
   FileText, 
   Sparkles, 
@@ -18,20 +19,81 @@ import {
   Zap, 
   MessageSquare,
   Bookmark,
-  Check
+  Check,
+  Loader2,
+  ShieldCheck,
+  X,
+  Globe
 } from 'lucide-react';
 
 interface ReaderViewProps {
-  manuscript: Manuscript;
+  manuscript?: Manuscript;
+  manuscriptId?: string;
   onOpenReviewerProfile?: (profileId: string) => void;
   reviewerProfiles?: ReviewerProfile[];
+  onUpvoteReview?: (reviewId: string) => void;
 }
 
-export const ReaderView: React.FC<ReaderViewProps> = ({ manuscript, onOpenReviewerProfile, reviewerProfiles }) => {
+export const ReaderView: React.FC<ReaderViewProps> = ({ 
+  manuscript: initialManuscript, 
+  manuscriptId,
+  onOpenReviewerProfile, 
+  reviewerProfiles,
+  onUpvoteReview 
+}) => {
+  const [dbManuscript, setDbManuscript] = useState<Manuscript | null>(initialManuscript || null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const targetId = manuscriptId || params?.get('manuscriptId') || params?.get('id') || initialManuscript?.id;
+
+    if (targetId) {
+      setIsLoading(true);
+      fetchSingleManuscriptFromDb(targetId)
+        .then(data => {
+          if (data) {
+            setDbManuscript(data);
+          } else if (initialManuscript) {
+            setDbManuscript(initialManuscript);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching single manuscript:', err);
+          if (initialManuscript) setDbManuscript(initialManuscript);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else if (initialManuscript) {
+      setDbManuscript(initialManuscript);
+    }
+  }, [manuscriptId, initialManuscript?.id]);
+
+  const manuscript = dbManuscript || initialManuscript;
+
   const [activeTab, setActiveTab] = useState<'interactive' | 'pdf' | 'ai_summary' | 'reviews'>('interactive');
   const [copiedDoi, setCopiedDoi] = useState(false);
   const [copiedBibtex, setCopiedBibtex] = useState(false);
   const [selectedFigure, setSelectedFigure] = useState<string | null>(null);
+  const [isDoiModalOpen, setIsDoiModalOpen] = useState(false);
+
+  if (isLoading && !manuscript) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 flex flex-col items-center justify-center space-y-4 text-slate-300">
+        <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
+        <p className="text-sm font-semibold">Fetching full article document dynamically from database...</p>
+      </div>
+    );
+  }
+
+  if (!manuscript) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+        <p className="text-slate-400 text-sm">No article document found matching the specified manuscript ID.</p>
+      </div>
+    );
+  }
 
   const handleCopyDoi = () => {
     navigator.clipboard.writeText(manuscript.doi);
@@ -69,9 +131,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ manuscript, onOpenReview
             <span className="bg-emerald-500/20 text-emerald-300 font-mono px-2.5 py-1 rounded-full border border-emerald-500/30 uppercase text-[10px]">
               {manuscript.status.replace('_', ' ')}
             </span>
-            <span className="text-slate-400 font-mono text-[11px] hidden sm:inline">
-              DOI: {manuscript.doi}
-            </span>
+            <button 
+              onClick={() => setIsDoiModalOpen(true)}
+              className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-mono text-[11px] px-2.5 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Click to verify DOI record & Crossref deposit metadata"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>DOI: {manuscript.doi}</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-4 text-xs text-slate-400">
@@ -142,6 +209,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ manuscript, onOpenReview
             >
               {copiedBibtex ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileCode className="w-3.5 h-3.5 text-purple-400" />}
               <span>{copiedBibtex ? 'BibTeX Copied!' : 'Export BibTeX'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsDoiModalOpen(true)}
+              className="px-3 py-1.5 bg-sky-950 hover:bg-sky-900 border border-sky-800 text-sky-300 text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+              <span>Verify DOI Record</span>
             </button>
           </div>
 
@@ -530,13 +605,95 @@ export const ReaderView: React.FC<ReaderViewProps> = ({ manuscript, onOpenReview
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-500">
                   <span>Completed on {rev.submittedDate}</span>
-                  <button className="flex items-center gap-1.5 text-slate-400 hover:text-sky-400 transition-colors cursor-pointer">
-                    <ThumbsUp className="w-3.5 h-3.5" />
+                  <button 
+                    onClick={() => onUpvoteReview?.(rev.id)}
+                    className="flex items-center gap-1.5 text-slate-400 hover:text-sky-400 transition-colors cursor-pointer bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 hover:border-sky-500/30"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5 text-sky-400" />
                     <span>Upvote Helpful Review ({rev.helpfulVotes})</span>
                   </button>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* DOI VERIFICATION MODAL */}
+      {isDoiModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-5 relative shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <ShieldCheck className="w-5 h-5" />
+                <h3 className="text-base font-bold text-slate-100">DOI Verification & Resolution Record</h3>
+              </div>
+              <button
+                onClick={() => setIsDoiModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Assigned Digital Object Identifier</span>
+                <p className="font-mono text-emerald-400 text-sm font-bold">{manuscript.doi}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Registrar Status</span>
+                  <span className="font-bold text-sky-400">Internal Journal Record</span>
+                </div>
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Crossref Deposit</span>
+                  <span className="font-bold text-amber-400">
+                    {manuscript.status === 'published' ? 'Deposited & Active' : 'Pre-publication Handle'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Digital Preservation & Archival Vault</span>
+                <p className="text-slate-300 leading-relaxed">
+                  This manuscript is preserved in the <strong className="text-slate-100">Digital Evolution Open Vault</strong>. For newly submitted and in-review manuscripts, the DOI handle is held in our staging repository prior to batch XML submission to Crossref/DataCite upon final publication.
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Crossref Metadata Payload Preview</span>
+                <pre className="p-2 bg-slate-900 border border-slate-800/80 rounded-lg text-[10px] font-mono text-emerald-300 overflow-x-auto max-h-28">
+{`<doi_record>
+  <doi>${manuscript.doi}</doi>
+  <title>${manuscript.title}</title>
+  <publisher>Digital Evolution Journal</publisher>
+  <status>${manuscript.status}</status>
+  <timestamp>${manuscript.submittedDate}</timestamp>
+</doi_record>`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between border-t border-slate-800">
+              <a
+                href={`https://doi.org/${manuscript.doi}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-medium"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Test External Resolution on doi.org</span>
+              </a>
+
+              <button
+                onClick={() => setIsDoiModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
+              >
+                Close Inspector
+              </button>
+            </div>
           </div>
         </div>
       )}

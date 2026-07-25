@@ -19,13 +19,16 @@ interface EditorialDashboardProps {
   manuscripts: Manuscript[];
   reviewers: ReviewerProfile[];
   onUpdateStatus: (manuscriptId: string, newStatus: any) => void;
+  onAssignReviewer: (manuscriptId: string, reviewer: ReviewerProfile) => void;
 }
 
 export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({
   manuscripts,
   reviewers,
-  onUpdateStatus
+  onUpdateStatus,
+  onAssignReviewer
 }) => {
+
   const [selectedManuscriptId, setSelectedManuscriptId] = useState<string>(
     manuscripts[0]?.id || ''
   );
@@ -161,7 +164,15 @@ export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({
                         <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
                           96% Match
                         </span>
-                        <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold text-xs rounded-lg transition-colors cursor-pointer">
+                        <button
+                          onClick={() => {
+                            if (!selectedManuscript) return;
+                            onAssignReviewer(selectedManuscript.id, rev);
+                            setActionSuccess(`Peer review invitation dispatched to ${rev.name} (${rev.institution}). Status updated to Under Review.`);
+                            setTimeout(() => setActionSuccess(null), 3500);
+                          }}
+                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-slate-950 font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                        >
                           Assign Invitation
                         </button>
                       </div>

@@ -1,50 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole, Manuscript, ReviewerProfile } from './types';
-import { MOCK_MANUSCRIPTS, MOCK_REVIEWER_PROFILES } from './data/mockData';
 import { Header } from './components/Header';
 import { ConstitutionModal } from './components/ConstitutionModal';
+import { SupabaseAuthModal } from './components/SupabaseAuthModal';
 import { ReaderView } from './components/ReaderView';
 import { SubmissionWizard } from './components/SubmissionWizard';
 import { ReviewerStudio } from './components/ReviewerStudio';
 import { EditorialDashboard } from './components/EditorialDashboard';
 import { DiscoveryHub } from './components/DiscoveryHub';
+import { 
+  fetchManuscriptsFromDb, 
+  saveManuscriptToDb, 
+  updateManuscriptStatusInDb, 
+  saveReviewToDb,
+  upvoteReviewInDb,
+  getLocalManuscripts,
+  saveLocalManuscripts,
+  getLocalReviewerProfiles,
+  saveLocalReviewerProfiles
+} from './services/supabaseService';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('reader');
   const [currentTab, setCurrentTab] = useState<string>('discovery');
-  const [manuscripts, setManuscripts] = useState<Manuscript[]>(MOCK_MANUSCRIPTS);
-  const [reviewerProfiles, setReviewerProfiles] = useState<ReviewerProfile[]>(MOCK_REVIEWER_PROFILES);
-  const [selectedManuscript, setSelectedManuscript] = useState<Manuscript>(MOCK_MANUSCRIPTS[0]);
+  
+  // Persistent local state initializers
+  const [manuscripts, setManuscripts] = useState<Manuscript[]>(() => getLocalManuscripts());
+  const [reviewerProfiles, setReviewerProfiles] = useState<ReviewerProfile[]>(() => getLocalReviewerProfiles());
+  const [selectedManuscript, setSelectedManuscript] = useState<Manuscript>(() => manuscripts[0]);
+  
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isConstitutionOpen, setIsConstitutionOpen] = useState<boolean>(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+
+  // Sync selectedManuscript whenever manuscripts array updates
+  useEffect(() => {
+    saveLocalManuscripts(manuscripts);
+    if (selectedManuscript) {
+      const updatedMatch = manuscripts.find(m => m.id === selectedManuscript.id);
+      if (updatedMatch) {
+        setSelectedManuscript(updatedMatch);
+      }
+    }
+  }, [manuscripts]);
+
+  // Sync reviewer profiles with localStorage
+  useEffect(() => {
+    saveLocalReviewerProfiles(reviewerProfiles);
+  }, [reviewerProfiles]);
+
+  // Load from Supabase on mount & establish Realtime channel if active
+  useEffect(() => {
+    fetchManuscriptsFromDb().then(data => {
+      if (data && data.length > 0) {
+        setManuscripts(data);
+      }
+    });
+
+    if (isSupabaseConfigured() && supabase) {
+      const channel = supabase
+        .channel('realtime-journal-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'manuscripts' },
+          () => {
+            fetchManuscriptsFromDb().then(data => {
+              if (data && data.length > 0) {
+                setManuscripts(data);
+              }
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, []);
 
   // Handle new manuscript submission from Author Wizard
   const handleManuscriptSubmitted = (newManuscript: Manuscript) => {
-    setManuscripts([newManuscript, ...manuscripts]);
+    const updated = [newManuscript, ...manuscripts];
+    setManuscripts(updated);
     setSelectedManuscript(newManuscript);
     setCurrentTab('reader');
     setActiveRole('reader');
+    saveManuscriptToDb(newManuscript);
   };
 
   // Handle new review submitted from Reviewer Studio
   const handleReviewSubmitted = (reviewData: any) => {
+    // 1. Update manuscript reviews
     setManuscripts(prev => prev.map(m => {
       if (m.id === reviewData.manuscriptId) {
+        const existingReviews = m.reviews || [];
         return {
           ...m,
-          reviews: [...m.reviews, reviewData]
+          reviews: [...existingReviews, reviewData]
         };
       }
       return m;
     }));
 
-    // Increment RRI score for reviewer profile
+    saveReviewToDb(reviewData, reviewData.manuscriptId);
+
+    // 2. Update reviewer profile history & RRI score
     setReviewerProfiles(prev => prev.map(p => {
       if (p.id === reviewData.reviewerId) {
+        const newHistoryItem = {
+          manuscriptTitle: selectedManuscript?.title || 'Evaluated Manuscript',
+          journalName: 'Digital Evolution',
+          completedDate: reviewData.submittedDate || new Date().toISOString().split('T')[0],
+          reviewDoi: reviewData.reviewDoi,
+          helpfulnessScore: 1,
+          decisionRecommendation: reviewData.recommendation,
+          publicSummary: reviewData.publicCitableSnippet || 'Peer review evaluation completed.'
+        };
+
         return {
           ...p,
           rriScore: Math.min(100, p.rriScore + 2),
-          verifiedDOIsCompleted: p.verifiedDOIsCompleted + 1
+          totalReviewsCompleted: p.totalReviewsCompleted + 1,
+          verifiedDOIsCompleted: p.verifiedDOIsCompleted + 1,
+          reviewHistory: [newHistoryItem, ...p.reviewHistory]
         };
       }
       return p;
@@ -62,6 +142,39 @@ export default function App() {
       }
       return m;
     }));
+
+    updateManuscriptStatusInDb(manuscriptId, newStatus);
+  };
+
+  // Handle reviewer assignment from Editorial Control
+  const handleAssignReviewer = (manuscriptId: string, reviewer: ReviewerProfile) => {
+    setManuscripts(prev => prev.map(m => {
+      if (m.id === manuscriptId) {
+        const updatedStatus = m.status === 'submitted' ? 'under_review' : m.status;
+        return {
+          ...m,
+          status: updatedStatus
+        };
+      }
+      return m;
+    }));
+
+    updateManuscriptStatusInDb(manuscriptId, 'under_review');
+  };
+
+  // Handle review helpful upvoting
+  const handleUpvoteReview = (manuscriptId: string, reviewId: string) => {
+    setManuscripts(prev => prev.map(m => {
+      if (m.id === manuscriptId) {
+        return {
+          ...m,
+          reviews: m.reviews.map(r => r.id === reviewId ? { ...r, helpfulVotes: r.helpfulVotes + 1 } : r)
+        };
+      }
+      return m;
+    }));
+
+    upvoteReviewInDb(manuscriptId, reviewId);
   };
 
   return (
@@ -74,6 +187,7 @@ export default function App() {
         activeRole={activeRole}
         setActiveRole={setActiveRole}
         onOpenConstitution={() => setIsConstitutionOpen(true)}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
       />
@@ -91,10 +205,12 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'reader' && selectedManuscript && (
+        {currentTab === 'reader' && (
           <ReaderView
             manuscript={selectedManuscript}
+            manuscriptId={selectedManuscript?.id}
             reviewerProfiles={reviewerProfiles}
+            onUpvoteReview={(reviewId) => selectedManuscript && handleUpvoteReview(selectedManuscript.id, reviewId)}
           />
         )}
 
@@ -117,6 +233,7 @@ export default function App() {
             manuscripts={manuscripts}
             reviewers={reviewerProfiles}
             onUpdateStatus={handleUpdateStatus}
+            onAssignReviewer={handleAssignReviewer}
           />
         )}
       </main>
@@ -143,6 +260,13 @@ export default function App() {
         onClose={() => setIsConstitutionOpen(false)}
       />
 
+      {/* Supabase Auth & Config Modal */}
+      <SupabaseAuthModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+      />
+
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserRole } from '../types';
+import { SupabaseStatusBadge } from './SupabaseStatusBadge';
 import { 
   BookOpen, 
   UploadCloud, 
@@ -18,6 +19,7 @@ interface HeaderProps {
   activeRole: UserRole;
   setActiveRole: (role: UserRole) => void;
   onOpenConstitution: () => void;
+  onOpenSupabaseModal?: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 }
@@ -28,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeRole,
   setActiveRole,
   onOpenConstitution,
+  onOpenSupabaseModal,
   searchQuery,
   setSearchQuery
 }) => {
@@ -43,13 +46,16 @@ export const Header: React.FC<HeaderProps> = ({
             Publish once. Read everywhere. Zero-Friction Ingestion & Verified Reviewer Recognition (RRI).
           </span>
         </div>
-        <button
-          onClick={onOpenConstitution}
-          className="flex items-center gap-1.5 text-sky-400 hover:text-sky-300 transition-colors font-medium cursor-pointer"
-        >
-          <ScrollText className="w-3.5 h-3.5" />
-          <span>Our Principles & Policies</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {onOpenSupabaseModal && <SupabaseStatusBadge onOpenModal={onOpenSupabaseModal} />}
+          <button
+            onClick={onOpenConstitution}
+            className="flex items-center gap-1.5 text-sky-400 hover:text-sky-300 transition-colors font-medium cursor-pointer"
+          >
+            <ScrollText className="w-3.5 h-3.5" />
+            <span>Our Principles & Policies</span>
+          </button>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
