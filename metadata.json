@@ -1,0 +1,6 @@
+{
+  "name": "Digital Evolution",
+  "description": "The Future of Scholarly Publishing — A modern research publishing ecosystem.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
