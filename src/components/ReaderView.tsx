@@ -114,6 +114,22 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     setTimeout(() => setCopiedBibtex(false), 2000);
   };
 
+  const [copiedRis, setCopiedRis] = useState(false);
+
+  const handleCopyRis = () => {
+    const ris = `TY  - JOUR
+TI  - ${manuscript.title}
+${manuscript.authors.map(a => `AU  - ${a.name}`).join('\n')}
+JO  - Digital Evolution Journal
+PY  - ${manuscript.publishedDate ? manuscript.publishedDate.substring(0, 4) : '2026'}
+DO  - ${manuscript.doi}
+AB  - ${manuscript.abstract.replace(/\n/g, ' ')}
+ER  - `;
+    navigator.clipboard.writeText(ris);
+    setCopiedRis(true);
+    setTimeout(() => setCopiedRis(false), 2000);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 text-slate-100">
       
@@ -194,7 +210,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
         {/* Action Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800/80">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleCopyDoi}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -209,6 +225,14 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             >
               {copiedBibtex ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileCode className="w-3.5 h-3.5 text-purple-400" />}
               <span>{copiedBibtex ? 'BibTeX Copied!' : 'Export BibTeX'}</span>
+            </button>
+
+            <button
+              onClick={handleCopyRis}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              {copiedRis ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileText className="w-3.5 h-3.5 text-amber-400" />}
+              <span>{copiedRis ? 'RIS Copied!' : 'Export RIS'}</span>
             </button>
 
             <button

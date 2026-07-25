@@ -137,7 +137,10 @@ export default function App() {
       if (m.id === manuscriptId) {
         return {
           ...m,
-          status: newStatus
+          status: newStatus,
+          publishedDate: (newStatus === 'accepted' || newStatus === 'published')
+            ? (m.publishedDate || new Date().toISOString().split('T')[0])
+            : m.publishedDate
         };
       }
       return m;
@@ -151,9 +154,14 @@ export default function App() {
     setManuscripts(prev => prev.map(m => {
       if (m.id === manuscriptId) {
         const updatedStatus = m.status === 'submitted' ? 'under_review' : m.status;
+        const currentAssigned = m.assignedReviewerIds || [];
+        const updatedAssigned = currentAssigned.includes(reviewer.id)
+          ? currentAssigned
+          : [...currentAssigned, reviewer.id];
         return {
           ...m,
-          status: updatedStatus
+          status: updatedStatus,
+          assignedReviewerIds: updatedAssigned
         };
       }
       return m;

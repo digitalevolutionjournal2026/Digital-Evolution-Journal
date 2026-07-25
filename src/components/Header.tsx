@@ -151,7 +151,12 @@ export const Header: React.FC<HeaderProps> = ({
             type="text"
             placeholder="Search papers, DOIs, authors, or topics..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.trim() && currentTab !== 'discovery') {
+                setCurrentTab('discovery');
+              }
+            }}
             className="w-full bg-slate-950/80 border border-slate-800 focus:border-sky-500 text-slate-200 text-xs rounded-xl pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-slate-500 transition-all"
           />
         </div>

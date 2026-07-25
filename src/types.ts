@@ -128,6 +128,7 @@ export interface Manuscript {
     reproducibilityScore: number; // 0-100
     flaggedIssues: string[];
   };
+  assignedReviewerIds?: string[];
 }
 
 export interface JournalSettings {

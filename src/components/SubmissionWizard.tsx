@@ -194,13 +194,15 @@ export const SubmissionWizard: React.FC<SubmissionWizardProps> = ({ onManuscript
           doi: `10.5555/ref.${Math.floor(Math.random() * 8999 + 1000)}`
         }
       ],
-      reviews: [],
       aiPreCheckScore: {
-        plagiarismIndex: 1,
-        referenceIntegrity: 98,
-        methodologyCompleteness: 96,
-        reproducibilityScore: 95,
-        flaggedIssues: []
+        plagiarismIndex: Math.round((Math.random() * 2 + 0.5) * 10) / 10,
+        referenceIntegrity: Math.min(100, Math.max(70, 75 + (references.length > 0 ? references.length : 2) * 4)),
+        methodologyCompleteness: sections.methodology.length > 300 ? 98 : sections.methodology.length > 80 ? 88 : 74,
+        reproducibilityScore: (sections.methodology + sections.results).toLowerCase().includes('data') || (sections.methodology + sections.results).toLowerCase().includes('code') ? 96 : 84,
+        flaggedIssues: [
+          ...(references.length < 3 ? ['Reference list contains fewer than 3 cited literature sources.'] : []),
+          ...(sections.methodology.length < 100 ? ['Methodology section is relatively brief; consider expanding experimental details.'] : [])
+        ]
       }
     };
 

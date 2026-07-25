@@ -248,9 +248,13 @@ export async function saveManuscriptToDb(manuscript: Manuscript): Promise<boolea
 }
 
 // Update manuscript status in Supabase & LocalStorage
-export async function updateManuscriptStatusInDb(manuscriptId: string, status: ManuscriptStatus): Promise<boolean> {
+export async function updateManuscriptStatusInDb(
+  manuscriptId: string, 
+  status: ManuscriptStatus,
+  extraFields?: Partial<Manuscript>
+): Promise<boolean> {
   const current = getLocalManuscripts();
-  const updated = current.map(m => m.id === manuscriptId ? { ...m, status } : m);
+  const updated = current.map(m => m.id === manuscriptId ? { ...m, status, ...extraFields } : m);
   saveLocalManuscripts(updated);
 
   if (!isSupabaseConfigured() || !supabase) {
@@ -258,16 +262,24 @@ export async function updateManuscriptStatusInDb(manuscriptId: string, status: M
   }
 
   try {
+    const updatePayload: Record<string, any> = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    };
+    if (extraFields?.publishedDate) {
+      updatePayload.published_date = extraFields.publishedDate;
+    }
+
     const { error } = await supabase
       .from('manuscripts')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', manuscriptId);
 
     if (error) {
       console.warn('Supabase updateManuscriptStatus warning:', error.message);
     }
 
-    await logAuditEntry('UPDATE_STATUS', 'manuscript', manuscriptId, { status });
+    await logAuditEntry('UPDATE_STATUS', 'manuscript', manuscriptId, { status, ...extraFields });
     return true;
   } catch (err) {
     console.error('Error updating manuscript status in DB:', err);

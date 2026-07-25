@@ -244,46 +244,66 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({
         </div>
 
         {/* Article Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredManuscripts.map((m, index) => (
-            <div
-              key={m.id ? `disc-${m.id}` : `disc-${index}`}
-              onClick={() => onSelectManuscript(m)}
-              className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-6 space-y-4 shadow-lg hover:shadow-2xl transition-all cursor-pointer flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="bg-slate-800 text-sky-300 px-2.5 py-0.5 rounded border border-slate-700">
-                    {m.discipline}
-                  </span>
-                  <span className="text-slate-400">{m.status.replace('_', ' ')}</span>
-                </div>
-
-                <h4 className="font-bold text-base text-slate-100 hover:text-sky-400 transition-colors line-clamp-2">
-                  {m.title}
-                </h4>
-
-                <p className="text-xs text-slate-400 font-serif line-clamp-3 leading-relaxed">
-                  {m.abstract}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800/80 space-y-3 text-xs">
-                <p className="text-slate-400 truncate">
-                  Authors: {m.authors.map(a => a.name).join(', ')}
-                </p>
-
-                <div className="flex items-center justify-between text-slate-500 font-mono text-[11px]">
-                  <span>{m.submittedDate}</span>
-                  <span className="text-sky-400 hover:underline flex items-center gap-1 font-sans font-semibold">
-                    <span>View Article</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-              </div>
+        {filteredManuscripts.length === 0 ? (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center space-y-4 max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center mx-auto">
+              <Search className="w-6 h-6" />
             </div>
-          ))}
-        </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-200 text-base">No Research Articles Found</h4>
+              <p className="text-xs text-slate-400">
+                No published or submitted manuscripts matched "{searchQuery}" {selectedDiscipline !== 'All' ? `in ${selectedDiscipline}` : ''}.
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedDiscipline('All')}
+              className="px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+            >
+              Reset Discipline Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredManuscripts.map((m, index) => (
+              <div
+                key={m.id ? `disc-${m.id}` : `disc-${index}`}
+                onClick={() => onSelectManuscript(m)}
+                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-6 space-y-4 shadow-lg hover:shadow-2xl transition-all cursor-pointer flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="bg-slate-800 text-sky-300 px-2.5 py-0.5 rounded border border-slate-700">
+                      {m.discipline}
+                    </span>
+                    <span className="text-slate-400">{m.status.replace('_', ' ')}</span>
+                  </div>
+
+                  <h4 className="font-bold text-base text-slate-100 hover:text-sky-400 transition-colors line-clamp-2">
+                    {m.title}
+                  </h4>
+
+                  <p className="text-xs text-slate-400 font-serif line-clamp-3 leading-relaxed">
+                    {m.abstract}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800/80 space-y-3 text-xs">
+                  <p className="text-slate-400 truncate">
+                    Authors: {m.authors.map(a => a.name).join(', ')}
+                  </p>
+
+                  <div className="flex items-center justify-between text-slate-500 font-mono text-[11px]">
+                    <span>{m.submittedDate}</span>
+                    <span className="text-sky-400 hover:underline flex items-center gap-1 font-sans font-semibold">
+                      <span>View Article</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

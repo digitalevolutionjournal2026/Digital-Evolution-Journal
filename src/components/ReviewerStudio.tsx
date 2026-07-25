@@ -229,23 +229,33 @@ export const ReviewerStudio: React.FC<ReviewerStudioProps> = ({
           <div className="space-y-4">
             <h3 className="text-xs font-mono uppercase text-slate-400 font-bold">Assigned Manuscripts</h3>
             
-            {manuscriptsNeedingReview.map((m, idx) => (
-              <button
-                key={m.id ? `rev-assign-${m.id}` : `rev-assign-${idx}`}
-                onClick={() => setSelectedManuscriptId(m.id)}
-                className={`w-full p-4 rounded-2xl border text-left space-y-2 transition-all cursor-pointer ${
-                  selectedManuscriptId === m.id
-                    ? 'bg-purple-950/40 border-purple-500 shadow-lg text-slate-100'
-                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}
-              >
-                <span className="text-[10px] font-mono bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">
-                  {m.discipline}
-                </span>
-                <h4 className="font-bold text-xs leading-snug line-clamp-2">{m.title}</h4>
-                <p className="text-[11px] text-slate-400">Submitted: {m.submittedDate}</p>
-              </button>
-            ))}
+              {manuscriptsNeedingReview.map((m, idx) => {
+                const isAssignedToMe = m.assignedReviewerIds?.includes(profile.id);
+                return (
+                  <button
+                    key={m.id ? `rev-assign-${m.id}` : `rev-assign-${idx}`}
+                    onClick={() => setSelectedManuscriptId(m.id)}
+                    className={`w-full p-4 rounded-2xl border text-left space-y-2 transition-all cursor-pointer ${
+                      selectedManuscriptId === m.id
+                        ? 'bg-purple-950/40 border-purple-500 shadow-lg text-slate-100'
+                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">
+                        {m.discipline}
+                      </span>
+                      {isAssignedToMe && (
+                        <span className="text-[9px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">
+                          Assigned to You
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-bold text-xs leading-snug line-clamp-2">{m.title}</h4>
+                    <p className="text-[11px] text-slate-400">Submitted: {m.submittedDate}</p>
+                  </button>
+                );
+              })}
           </div>
 
           {/* Evaluation Form (2 cols) */}

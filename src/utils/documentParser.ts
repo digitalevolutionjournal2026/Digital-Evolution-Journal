@@ -249,17 +249,37 @@ export function parseTextToStructure(
       .map(l => l.trim())
       .filter(l => l.length > 15);
 
-    refLines.slice(0, 8).forEach((refStr, idx) => {
+    refLines.slice(0, 10).forEach((refStr, idx) => {
       const yearMatch = refStr.match(/\b(19\d\d|20\d\d)\b/);
-      const year = yearMatch ? parseInt(yearMatch[1], 10) : 2024;
+      const year = yearMatch ? parseInt(yearMatch[1], 10) : 2025;
+
+      const doiMatch = refStr.match(/\b(10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+)\b/);
+      const doi = doiMatch ? doiMatch[1] : `10.1016/j.ref.${year}.${idx + 101}`;
+
+      let authors = 'Parsed Contributor(s)';
+      let refTitle = refStr;
+
+      const authorsMatch = refStr.match(/^([A-Za-z\s,\.\&]+?)\s*\(\d{4}\)/);
+      if (authorsMatch && authorsMatch[1].trim().length > 3) {
+        authors = authorsMatch[1].trim();
+        refTitle = refStr.substring(authorsMatch[0].length).replace(/^[\s.:"]+/, '').trim();
+      } else {
+        const quoteMatch = refStr.match(/"([^"]+)"/);
+        if (quoteMatch) {
+          refTitle = quoteMatch[1];
+          const beforeQuote = refStr.substring(0, refStr.indexOf('"')).trim();
+          if (beforeQuote.length > 3) authors = beforeQuote.replace(/^[0-9.\[\]\s]+/, '');
+        }
+      }
+
       references.push({
         id: `ref-parsed-${idx + 1}`,
         citationKey: `Ref${idx + 1}`,
-        title: refStr.slice(0, 120),
-        authors: 'Parsed Contributor(s)',
+        title: refTitle.slice(0, 150) || refStr.slice(0, 120),
+        authors: authors,
         journal: 'Academic Literature Journal',
         year: year,
-        doi: `10.1016/j.parsed.2026.${idx + 100}`
+        doi: doi
       });
     });
   }
